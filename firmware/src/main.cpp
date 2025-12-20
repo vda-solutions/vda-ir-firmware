@@ -1390,21 +1390,21 @@ void handleSendIR() {
   } else if (protocol == "panasonic") {
     irSenders[portIndex]->sendPanasonic(0x4004, codeValue);  // Standard Panasonic address
   } else if (protocol == "pioneer") {
-    // Pioneer: exact timing from IRremoteESP8266 library
-    // kPioneerHdrMark=8506, kPioneerHdrSpace=4191
-    // kPioneerBitMark=568, kPioneerOneSpace=1542, kPioneerZeroSpace=487
-    // kPioneerMinGap=25181, kPioneerMinCommandLength=84906
-    // 40kHz, MSBfirst=true, duty=33
-    irSenders[portIndex]->sendGeneric(
-      8506, 4191,     // Header mark, space (µs)
-      568, 1542,      // Bit mark, one space
-      568, 487,       // Bit mark, zero space
-      568, 25181,     // Footer mark, gap
-      84906,          // Min command length
-      codeValue, 32,  // Data, bits
-      40,             // 40kHz frequency
-      true, 0, 33     // MSBfirst=true, no repeat, 33% duty
-    );
+    // Pioneer codes in "AAAACCCC" format need to be encoded as 64-bit Pioneer protocol
+    // The first 4 hex digits are the address, the last 4 are the command
+    // e.g., "A55A38C7" = address 0xA55A, command 0x38C7
+    if (codeValue <= 0xFFFFFFFF) {
+      // 32-bit code in Address+Command format - encode it properly
+      uint16_t address = (codeValue >> 16) & 0xFFFF;
+      uint16_t command = codeValue & 0xFFFF;
+      uint64_t encodedValue = irSenders[portIndex]->encodePioneer(address, command);
+      Serial.printf("Pioneer: encoding 0x%08llX as address=0x%04X command=0x%04X -> 0x%016llX\n",
+                    codeValue, address, command, encodedValue);
+      irSenders[portIndex]->sendPioneer(encodedValue, 64);
+    } else {
+      // Already a 64-bit code - send as-is
+      irSenders[portIndex]->sendPioneer(codeValue, 64);
+    }
   } else {
     // Send as raw NEC by default
     irSenders[portIndex]->sendNEC(codeValue);
