@@ -1351,12 +1351,14 @@ void handleSendIR() {
     return;
   }
 
-  StaticJsonDocument<256> doc;
+  // Use larger buffer for raw IR data
+  DynamicJsonDocument doc(4096);
   deserializeJson(doc, server.arg("plain"));
 
   int output = doc["output"] | -1;
   String code = doc["code"] | "";
   String protocol = doc["protocol"] | "nec";
+  int frequency = doc["frequency"] | 38000;
 
   // Find port index
   int portIndex = -1;
@@ -1404,6 +1406,23 @@ void handleSendIR() {
     } else {
       // Already a 64-bit code - send as-is
       irSenders[portIndex]->sendPioneer(codeValue, 64);
+    }
+  } else if (protocol == "raw") {
+    // Raw IR - expects "raw_data" array of timing values in microseconds
+    JsonArray rawArray = doc["raw_data"];
+    if (rawArray.size() > 0) {
+      uint16_t rawData[512];  // Max 512 timing values
+      size_t rawLen = min((size_t)rawArray.size(), (size_t)512);
+
+      for (size_t i = 0; i < rawLen; i++) {
+        rawData[i] = rawArray[i];
+      }
+
+      Serial.printf("Sending raw IR: %d values at %dHz via GPIO%d\n", rawLen, frequency, output);
+      irSenders[portIndex]->sendRaw(rawData, rawLen, frequency / 1000);
+    } else {
+      server.send(400, "application/json", "{\"error\":\"raw_data array required for raw protocol\"}");
+      return;
     }
   } else {
     // Send as raw NEC by default
