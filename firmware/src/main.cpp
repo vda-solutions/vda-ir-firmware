@@ -908,6 +908,45 @@ void loadConfig() {
       ports[portCount].name = "";
       portCount++;
     }
+  } else {
+    // Check if there are more available pins than saved portCount
+    // This handles firmware updates that add new pins
+    int expectedCount = OUTPUT_CAPABLE_COUNT + INPUT_ONLY_COUNT;
+    if (portCount < expectedCount) {
+      Serial.printf("Expanding ports from %d to %d\n", portCount, expectedCount);
+      // Add any missing output-capable pins
+      for (int i = 0; i < OUTPUT_CAPABLE_COUNT; i++) {
+        int gpio = OUTPUT_CAPABLE_PINS[i];
+        bool found = false;
+        for (int j = 0; j < portCount; j++) {
+          if (ports[j].gpio == gpio) { found = true; break; }
+        }
+        if (!found && portCount < MAX_PORTS) {
+          ports[portCount].gpio = gpio;
+          ports[portCount].mode = "disabled";
+          ports[portCount].name = "";
+          portCount++;
+        }
+      }
+      // Add any missing input-only pins
+      for (int i = 0; i < INPUT_ONLY_COUNT; i++) {
+        int gpio = INPUT_ONLY_PINS[i];
+        bool found = false;
+        for (int j = 0; j < portCount; j++) {
+          if (ports[j].gpio == gpio) { found = true; break; }
+        }
+        if (!found && portCount < MAX_PORTS) {
+          ports[portCount].gpio = gpio;
+          ports[portCount].mode = "disabled";
+          ports[portCount].name = "";
+          portCount++;
+        }
+      }
+      // Save the expanded config
+      preferences.end();
+      saveConfig();
+      preferences.begin("vda-ir", true);
+    }
   }
 
   preferences.end();
