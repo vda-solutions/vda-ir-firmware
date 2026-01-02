@@ -1014,6 +1014,11 @@ void setupWebServer() {
   server.on("/ports", HTTP_GET, handlePorts);
   server.on("/ports/configure", HTTP_POST, handleConfigurePort);
   server.on("/adopt", HTTP_POST, handleAdopt);
+  server.on("/reboot", HTTP_POST, []() {
+    server.send(200, "application/json", "{\"success\":true,\"message\":\"Rebooting...\"}");
+    delay(500);
+    ESP.restart();
+  });
   server.on("/send_ir", HTTP_POST, handleSendIR);
   server.on("/test_output", HTTP_POST, handleTestOutput);
   server.on("/learning/start", HTTP_POST, handleLearningStart);
