@@ -1248,7 +1248,7 @@ void handleStatus() {
 }
 
 void handlePorts() {
-  StaticJsonDocument<2048> doc;
+  StaticJsonDocument<4096> doc;  // Increased for 22+ ports
 
   doc["total_ports"] = portCount;
   JsonArray portsArray = doc.createNestedArray("ports");
