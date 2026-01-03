@@ -42,7 +42,7 @@
 #endif
 
 // Firmware version
-#define FIRMWARE_VERSION "1.2.1"
+#define FIRMWARE_VERSION "1.2.2"
 
 // LED States
 enum LedState {
@@ -1420,11 +1420,40 @@ void handleSendIR() {
 
   // Parse and send IR code
   uint64_t codeValue = strtoull(code.c_str(), nullptr, 16);
+  int freqKHz = frequency / 1000;  // Convert Hz to kHz for library
 
   if (protocol == "nec") {
-    irSenders[portIndex]->sendNEC(codeValue);
+    if (frequency != 38000) {
+      // Use sendGeneric for custom carrier frequency (e.g., 56kHz for Samsung SMT boxes)
+      // NEC timings: HDR=9000/4500, BIT=562, ONE=1687, ZERO=562
+      Serial.printf("Sending NEC at %dkHz via GPIO%d\n", freqKHz, output);
+      irSenders[portIndex]->sendGeneric(
+        9000, 4500,       // Header mark/space
+        562, 1687,        // Bit mark, one space
+        562, 562,         // Zero mark (same as bit), zero space
+        562, 40000,       // Footer mark, gap
+        codeValue, 32,    // Data and bits
+        freqKHz, true, 0, 33  // Freq, MSB first, repeats, duty cycle
+      );
+    } else {
+      irSenders[portIndex]->sendNEC(codeValue);
+    }
   } else if (protocol == "samsung") {
-    irSenders[portIndex]->sendSAMSUNG(codeValue);
+    if (frequency != 38000) {
+      // Use sendGeneric for custom carrier frequency
+      // Samsung timings: HDR=4500/4500, BIT=560, ONE=1690, ZERO=560
+      Serial.printf("Sending Samsung at %dkHz via GPIO%d\n", freqKHz, output);
+      irSenders[portIndex]->sendGeneric(
+        4500, 4500,       // Header mark/space
+        560, 1690,        // Bit mark, one space
+        560, 560,         // Zero mark (same as bit), zero space
+        560, 40000,       // Footer mark, gap
+        codeValue, 32,    // Data and bits
+        freqKHz, true, 0, 33  // Freq, MSB first, repeats, duty cycle
+      );
+    } else {
+      irSenders[portIndex]->sendSAMSUNG(codeValue);
+    }
   } else if (protocol == "sony") {
     irSenders[portIndex]->sendSony(codeValue);
   } else if (protocol == "rc5") {
