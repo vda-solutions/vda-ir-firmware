@@ -42,7 +42,7 @@
 #endif
 
 // Firmware version
-#define FIRMWARE_VERSION "1.2.2"
+#define FIRMWARE_VERSION "1.2.3"
 
 // LED States
 enum LedState {
@@ -404,6 +404,7 @@ void initNetwork() {
   if (wifiConfigured && wifiSSID.length() > 0) {
     Serial.printf("Connecting to WiFi: %s\n", wifiSSID.c_str());
     WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);  // Enable automatic reconnection
     WiFi.setHostname(boardId.length() > 0 ? boardId.c_str() : "vda-ir-controller");
     WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
   }
@@ -425,9 +426,13 @@ void onWiFiEvent(WiFiEvent_t event) {
       setLedState(LED_ON);
       break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-      Serial.println("WiFi: Disconnected");
+      Serial.println("WiFi: Disconnected - will attempt reconnect");
       networkConnected = false;
       setLedState(LED_BLINK_SLOW);
+      // Auto-reconnect if we have credentials and not in AP mode
+      if (wifiConfigured && wifiSSID.length() > 0 && !apMode) {
+        WiFi.reconnect();
+      }
       break;
     case ARDUINO_EVENT_WIFI_AP_START:
       Serial.println("WiFi AP: Started");
