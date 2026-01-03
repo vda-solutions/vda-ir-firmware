@@ -25,6 +25,7 @@
 #include <IRutils.h>
 #include <DNSServer.h>
 #include <Update.h>
+#include <esp_task_wdt.h>
 
 #ifdef USE_ETHERNET
   #include <ETH.h>
@@ -42,7 +43,10 @@
 #endif
 
 // Firmware version
-#define FIRMWARE_VERSION "1.2.4"
+#define FIRMWARE_VERSION "1.2.5"
+
+// Watchdog timeout (seconds) - reboots if loop hangs longer than this
+#define WDT_TIMEOUT_SECONDS 8
 
 // LED States
 enum LedState {
@@ -267,10 +271,17 @@ void setup() {
     setLedState(LED_BLINK_FAST);
 #endif
   }
+
+  // Initialize hardware watchdog - reboots if loop hangs
+  esp_task_wdt_init(WDT_TIMEOUT_SECONDS, true);
+  esp_task_wdt_add(NULL);
+  Serial.printf("Watchdog enabled: %d second timeout\n", WDT_TIMEOUT_SECONDS);
 }
 
 // ============ Loop ============
 void loop() {
+  // Feed watchdog to prevent reboot
+  esp_task_wdt_reset();
   // Handle DNS for captive portal
 #ifdef USE_WIFI
   if (captivePortalActive) {
