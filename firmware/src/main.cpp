@@ -42,7 +42,7 @@
 #endif
 
 // Firmware version
-#define FIRMWARE_VERSION "1.2.3"
+#define FIRMWARE_VERSION "1.2.4"
 
 // LED States
 enum LedState {
@@ -70,6 +70,13 @@ bool ledOn = false;
   String wifiSSID = "";
   String wifiPassword = "";
   bool wifiConfigured = false;
+
+  // WiFi reconnect with backoff
+  bool wifiNeedsReconnect = false;
+  unsigned long wifiReconnectTime = 0;
+  int wifiReconnectAttempts = 0;
+  // Backoff: 3s for first min (~20 attempts), 5s until 5min (~68 attempts), then 20s
+  #define WIFI_RECONNECT_MAX_ATTEMPTS 120
 #endif
 
 // ============ Available GPIO Pins for IR ============
@@ -269,6 +276,33 @@ void loop() {
   if (captivePortalActive) {
     dnsServer.processNextRequest();
   }
+
+  // Handle WiFi reconnect with backoff
+  if (wifiNeedsReconnect && !networkConnected) {
+    // Determine delay based on attempt count
+    // 3s for first ~20 attempts (1 min), 5s for next ~48 (until 5 min), then 20s
+    unsigned long reconnectDelay;
+    if (wifiReconnectAttempts < 20) {
+      reconnectDelay = 3000;
+    } else if (wifiReconnectAttempts < 68) {
+      reconnectDelay = 5000;
+    } else {
+      reconnectDelay = 20000;
+    }
+
+    if (millis() - wifiReconnectTime >= reconnectDelay) {
+      wifiReconnectAttempts++;
+
+      if (wifiReconnectAttempts >= WIFI_RECONNECT_MAX_ATTEMPTS) {
+        Serial.println("WiFi: Max reconnect attempts reached, rebooting...");
+        delay(100);
+        ESP.restart();
+      }
+
+      WiFi.reconnect();
+      wifiReconnectTime = millis();
+    }
+  }
 #endif
 
   server.handleClient();
@@ -423,15 +457,18 @@ void onWiFiEvent(WiFiEvent_t event) {
       Serial.printf("WiFi: MAC - %s\n", WiFi.macAddress().c_str());
       networkConnected = true;
       apMode = false;
+      wifiNeedsReconnect = false;
+      wifiReconnectAttempts = 0;
       setLedState(LED_ON);
       break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-      Serial.println("WiFi: Disconnected - will attempt reconnect");
+      Serial.println("WiFi: Disconnected");
       networkConnected = false;
       setLedState(LED_BLINK_SLOW);
-      // Auto-reconnect if we have credentials and not in AP mode
+      // Schedule reconnect with backoff (handled in loop)
       if (wifiConfigured && wifiSSID.length() > 0 && !apMode) {
-        WiFi.reconnect();
+        wifiNeedsReconnect = true;
+        wifiReconnectTime = millis();  // Start timer for first attempt
       }
       break;
     case ARDUINO_EVENT_WIFI_AP_START:
