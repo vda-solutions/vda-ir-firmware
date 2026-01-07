@@ -25,7 +25,7 @@ Download the latest release from the [Releases](https://github.com/vda-solutions
 pip install esptool
 
 # Flash to ESP32 (replace COM port and firmware file)
-esptool.py --chip esp32 --port /dev/ttyUSB0 write_flash 0x0 firmware-esp32-poe-iso-v1.2.1.bin
+esptool.py --chip esp32 --port /dev/ttyUSB0 write_flash 0x0 firmware-esp32-poe-iso-v1.2.5.bin
 ```
 
 ### Flash Using Web Flasher
@@ -59,7 +59,7 @@ pio run -t monitor
 ### Create Merged Binary (for distribution)
 
 ```bash
-VERSION="1.2.1"
+VERSION="1.2.5"
 
 # POE-ISO
 pio pkg exec -p tool-esptoolpy -- esptool.py --chip esp32 merge_bin \
@@ -112,6 +112,31 @@ See [docs/API_REFERENCE.md](docs/API_REFERENCE.md) for full API documentation.
 | `/send_ir` | POST | Send IR code |
 | `/learning/start` | POST | Start IR learning |
 | `/learning/status` | GET | Get learned code |
+
+## Changelog
+
+### v1.2.5
+- Improved WiFi auto-reconnect stability
+- OTA update improvements
+- Bug fixes for IR timing
+
+### v1.2.4
+- Enhanced captive portal for WiFi setup
+- Memory optimization
+
+### v1.2.3
+- Fixed IR output timing issues
+- Improved board discovery reliability
+
+### v1.2.2
+- Added support for more GPIO pins
+- Stability improvements
+
+### v1.2.1
+- Initial stable release
+- Support for ESP32 DevKit and Olimex POE-ISO
+- OTA firmware updates
+- REST API for IR control
 
 ## Related Repositories
 
